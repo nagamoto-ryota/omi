@@ -176,7 +176,7 @@ final class RatingPromptManager: ObservableObject {
   /// Injectable for tests; production asks the backend for the owner's own
   /// messages, owner-asserted end to end (expectedOwnerId). Assigned in init
   /// (APIClient is actor-isolated, so it cannot be a property default).
-  var historyFetch: ((String) async throws -> [ChatMessageDB])!
+  var historyFetch: ((String) async throws -> [ChatMessageDB])?
 
   func seedFromHistoryIfNeeded() async {
     // Owner-fenced: the seed reads and WRITES the account that started it.
@@ -198,7 +198,7 @@ final class RatingPromptManager: ObservableObject {
     for attempt in 1...5 {
       guard ownerProvider() == owner, !Task.isCancelled else { return }
       if AuthState.shared.isSignedIn,
-        let result = try? await historyFetch(owner)
+        let result = try? await historyFetch?(owner)
       {
         history = result
         fetched = true
