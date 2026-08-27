@@ -117,6 +117,27 @@ describe('formatRows caps', () => {
     const out = formatRows(['id'], rows)
     expect(out.endsWith(`${MAX_ROWS} row(s)`)).toBe(true)
   })
+  it('renders UTC timestamp cells in the pinned local timezone', () => {
+    const out = formatRows(
+      ['timestamp', 'app'],
+      [['2026-08-27 19:59:51', 'Claude']],
+      'America/New_York'
+    )
+    expect(out).toMatch(/3:59:51 PM|15:59:51/)
+    expect(out).toMatch(/America\/New_York|EDT/)
+    expect(out).not.toContain('7:59:51 PM')
+    expect(out).toContain('Claude')
+  })
+  it('renders Windows epoch-ms timestamp columns in the pinned timezone', () => {
+    const out = formatRows(
+      ['ts', 'app'],
+      [[Date.parse('2026-08-27T19:59:51Z'), 'Claude']],
+      'America/New_York'
+    )
+    expect(out).toMatch(/3:59:51 PM|15:59:51/)
+    expect(out).toMatch(/America\/New_York|EDT/)
+    expect(out).not.toContain('7:59:51 PM')
+  })
 })
 
 describe('executeSql', () => {

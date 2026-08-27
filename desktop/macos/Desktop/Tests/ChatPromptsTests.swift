@@ -3,6 +3,51 @@ import XCTest
 @testable import Omi_Computer
 
 final class ChatPromptsTests: XCTestCase {
+  func testCurrentDatetimeStringIncludesIANAZoneAndConvertsUTCInstant() throws {
+    let date = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-08-27T19:59:51Z"))
+    let timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
+
+    let rendered = ChatPromptBuilder.currentDatetimeString(date, timeZone: timeZone)
+    XCTAssertTrue(
+      rendered.contains("3:59:51 PM") || rendered.contains("15:59:51"),
+      "expected local 3:59:51 PM, got \(rendered)")
+    XCTAssertTrue(
+      rendered.contains("America/New_York") || rendered.contains("EDT"),
+      "expected a zone token, got \(rendered)")
+    XCTAssertFalse(rendered.contains("7:59:51 PM"), "must not present UTC-as-local \(rendered)")
+  }
+
+  func testDesktopChatPromptDoesNotBakeALiveClockIntoTheCachedPrefix() {
+    XCTAssertFalse(ChatPrompts.desktopChat.contains("{current_datetime_str}"))
+    XCTAssertTrue(ChatPrompts.desktopChat.contains("# Current Time"))
+    XCTAssertTrue(ChatPrompts.desktopChat.contains("{tz}"))
+  }
+
+  func testDesktopChatSQLFiltersCompareUTCColumnsToUTCBounds() {
+    let prompt = ChatPrompts.desktopChat
+    XCTAssertTrue(prompt.contains("datetime('now', 'localtime', 'start of day', '-1 day', 'utc')"))
+    XCTAssertTrue(prompt.contains("datetime('now', 'localtime', 'start of day', 'utc')"))
+    XCTAssertFalse(
+      prompt.contains("timestamp >= datetime('now', 'start of day', '-1 day', 'localtime')"))
+    XCTAssertFalse(prompt.contains("timestamp >= datetime('now', '-1 day', 'localtime')"))
+    XCTAssertFalse(prompt.contains("startedAt >= datetime('now', 'start of day', '-1 day', 'localtime')"))
+    XCTAssertFalse(prompt.contains("createdAt >= datetime('now', 'start of day', '-1 day', 'localtime')"))
+    XCTAssertFalse(prompt.contains("which SQLite handles automatically"))
+  }
+
+  func testSQLDayBoundsStayUTCVersusUTC() {
+    XCTAssertEqual(
+      DesktopChatTimestampFormat.SQLDayBounds.startAsUTC(daysAgo: 1),
+      "datetime('now', 'localtime', 'start of day', '-1 day', 'utc')")
+    XCTAssertEqual(
+      DesktopChatTimestampFormat.SQLDayBounds.exclusiveEndAsUTC(daysAgo: 1),
+      "datetime('now', 'localtime', 'start of day', 'utc')")
+    XCTAssertEqual(
+      DesktopChatTimestampFormat.SQLDayBounds.exclusiveEndAsUTC(daysAgo: 0),
+      "datetime('now')")
+    XCTAssertTrue(DesktopChatTimestampFormat.SQLDayBounds.startAsUTC(daysAgo: 0).hasSuffix("'utc')"))
+  }
+
   func testCurrentTimePromptUsesOneExplicitInstantAndTimeZone() throws {
     let date = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-07-31T02:30:45Z"))
     let timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))

@@ -6,7 +6,11 @@ enum SQLQueryResultProjection {
   private static let maxCellCharacters = 500
   private static let maxOutputCharacters = 12_000
 
-  nonisolated static func format(rows: [Row], query: String) -> (text: String, count: Int) {
+  nonisolated static func format(
+    rows: [Row],
+    query: String,
+    timeZone: TimeZone = .current
+  ) -> (text: String, count: Int) {
     guard let firstRow = rows.first else {
       let hint =
         referencesScreenshots(query)
@@ -30,7 +34,9 @@ enum SQLQueryResultProjection {
     var truncated = false
 
     for row in rows.prefix(maxRows) {
-      let line = row.map { (_, value) in renderedValue(value) }.joined(separator: " | ")
+      let line = columns.map { name in
+        renderedValue(row[name], column: name, timeZone: timeZone)
+      }.joined(separator: " | ")
       guard characterCount + line.count + 1 <= maxOutputCharacters else {
         truncated = true
         break
@@ -97,7 +103,16 @@ enum SQLQueryResultProjection {
     }
   }
 
-  private nonisolated static func renderedValue(_ databaseValue: DatabaseValue) -> String {
+  private nonisolated static func renderedValue(
+    _ databaseValue: DatabaseValue,
+    column: String,
+    timeZone: TimeZone
+  ) -> String {
+    if let formatted = DesktopChatTimestampFormat.formatSQLCell(
+      column: column, value: databaseValue, timeZone: timeZone)
+    {
+      return formatted
+    }
     let value: String
     switch databaseValue.storage {
     case .null:

@@ -19,6 +19,7 @@
 // NEVER log a query, a result cell, or a window title from here — SQL results are
 // raw OCR/screen text.
 import type { RewindFrame } from '../../../shared/types'
+import { formatSqlTimestampCell, resolveChatTimeZone } from '../../../shared/chatTimestamp'
 
 /** Mac's auto-limit + belt-and-suspenders row cap ("Auto-limited to 200 rows"). */
 export const MAX_ROWS = 200
@@ -606,12 +607,25 @@ function cellToString(v: unknown): string {
 
 /** Mac's pipe-table rendering: header, divider, one line per (capped) row, a
  *  trailing `N row(s)`. Empty set → the literal `No results`. */
-export function formatRows(columns: string[], rows: unknown[][]): string {
+export function formatRows(
+  columns: string[],
+  rows: unknown[][],
+  timeZone: string = resolveChatTimeZone()
+): string {
   if (rows.length === 0) return 'No results'
   const capped = rows.slice(0, MAX_ROWS)
   const divider = '-'.repeat(Math.min(columns.length * 20, 120))
   const lines = [columns.join(' | '), divider]
-  for (const row of capped) lines.push(row.map(cellToString).join(' | '))
+  for (const row of capped) {
+    lines.push(
+      row
+        .map((cell, index) => {
+          const formatted = formatSqlTimestampCell(columns[index] ?? '', cell, timeZone)
+          return cellToString(formatted ?? cell)
+        })
+        .join(' | ')
+    )
+  }
   lines.push(`${capped.length} row(s)`)
   return lines.join('\n')
 }
