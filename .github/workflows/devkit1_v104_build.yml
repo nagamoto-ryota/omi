@@ -1,0 +1,54 @@
+name: DevKit1 v1.0.4 firmware build (momijian)
+
+# 自作ペンダント（Seeed XIAO nRF52840 Sense）用 DevKit1 ファーム v1.0.4 系のビルド。
+# 書き込み用の zephyr.uf2 を成果物（artifact）として残す。リリースは作らない。
+# SDK は v1.0.4 当時の nRF Connect SDK に合わせる（ボード名 xiao_ble_sense が使える v2.6 系）。
+
+on:
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'firmware/firmware_v1.0/**'
+      - '.github/workflows/devkit1_v104_build.yml'
+  pull_request:
+    paths:
+      - 'firmware/firmware_v1.0/**'
+      - '.github/workflows/devkit1_v104_build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    container: ghcr.io/zephyrproject-rtos/ci:v0.26.13
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: app
+          sparse-checkout: firmware/firmware_v1.0
+
+      - name: Fetch nRF Connect SDK v2.6.1
+        run: |
+          west init -m https://github.com/nrfconnect/sdk-nrf --mr v2.6.1 ncs
+          cd ncs
+          west update --narrow -o=--depth=1
+
+      - name: Build (xiao_ble_sense)
+        shell: bash
+        run: |
+          cd ncs
+          source zephyr/zephyr-env.sh
+          west build -p always -b xiao_ble_sense "$GITHUB_WORKSPACE/app/firmware/firmware_v1.0" -d "$GITHUB_WORKSPACE/build"
+          ls -l "$GITHUB_WORKSPACE/build/zephyr/zephyr.uf2"
+          sha256sum "$GITHUB_WORKSPACE/build/zephyr/zephyr.uf2"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: friend-devkit1-v1.0.4-usb-charge-${{ github.sha }}
+          path: |
+            build/zephyr/zephyr.uf2
+            build/zephyr/zephyr.hex
+            build/zephyr/.config
