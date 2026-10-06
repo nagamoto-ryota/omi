@@ -18,7 +18,26 @@
 // 基板には電源が入る。この改修でその状態でもマイクと Bluetooth は動かない。
 #define POWER_POLL_MS 100
 #define LED_UPDATE_EVERY_POLLS 5      // 従来どおり 500ms ごとに LED を更新
-#define USB_REMOVED_DEBOUNCE_POLLS 5  // 抜けた判定は 500ms 連続で給電なし（挿し込み時のチャタリング対策）
+#define USB_REMOVED_DEBOUNCE_MS 500   // 抜けた判定は 500ms 以上連続で給電なし（挿し込み時のチャタリング対策）
+#define USB_PRESENT_CONFIRM_READS 3   // 挿した判定は 10ms 間隔で 3 回連続（接点のバタつきで再起動を繰り返さない）
+#define USB_PRESENT_CONFIRM_GAP_MS 10
+
+// 一瞬の VBUS のバタつきでは true にしない（最大約 20ms 待つ）
+static bool usb_power_stable_present(void)
+{
+	for (int i = 0; i < USB_PRESENT_CONFIRM_READS; i++)
+	{
+		if (i > 0)
+		{
+			k_msleep(USB_PRESENT_CONFIRM_GAP_MS);
+		}
+		if (!usb_power_present())
+		{
+			return false;
+		}
+	}
+	return true;
+}
 
 static void codec_handler(uint8_t *data, size_t len)
 {
@@ -96,14 +115,18 @@ static void charge_only_mode(void)
 		printk("Battery init failed (err %d)\n", battErr);
 	}
 
-	int absent_polls = 0;
+	int64_t absent_since = -1;
 	while (1)
 	{
 		if (usb_power_present())
 		{
-			absent_polls = 0;
+			absent_since = -1;
 		}
-		else if (++absent_polls >= USB_REMOVED_DEBOUNCE_POLLS)
+		else if (absent_since < 0)
+		{
+			absent_since = k_uptime_get();
+		}
+		else if (k_uptime_get() - absent_since >= USB_REMOVED_DEBOUNCE_MS)
 		{
 			printk("USB power removed: rebooting to normal mode\n");
 			sys_reboot(SYS_REBOOT_COLD);
@@ -119,29 +142,46 @@ int main(void)
 	ASSERT_OK(led_start());
 
 	// USB 給電中はマイクも Bluetooth も起動しない（戻らない）
-	if (usb_power_present())
+	if (usb_power_stable_present())
 	{
 		charge_only_mode();
 	}
 
 	set_led_blue(true);
 
-	// Transport start
-	ASSERT_OK(transport_start());
-
-	// Codec start
-	set_codec_callback(codec_handler);
-	ASSERT_OK(codec_start());
-
-	// Mic start
-	set_mic_callback(mic_handler);
-	ASSERT_OK(mic_start());
+	// 初期化が途中で失敗しても main を抜けずに下の監視ループへ入る
+	// （本家は ASSERT_OK で return するため、BLE だけ動いたまま USB 監視が止まる経路があった）
+	int err = transport_start();
+	if (err)
+	{
+		printk("Transport start failed (err %d)\n", err);
+	}
+	else
+	{
+		// Codec start
+		set_codec_callback(codec_handler);
+		err = codec_start();
+		if (err)
+		{
+			printk("Codec start failed (err %d)\n", err);
+		}
+		else
+		{
+			// Mic start
+			set_mic_callback(mic_handler);
+			err = mic_start();
+			if (err)
+			{
+				printk("Mic start failed (err %d)\n", err);
+			}
+		}
+	}
 
 	int polls = 0;
 	while (1)
 	{
 		// 録音中に USB 給電が来たら、即マイクを止めて再起動（充電専用モードへ）
-		if (usb_power_present())
+		if (usb_power_present() && usb_power_stable_present())
 		{
 			mic_power_off();
 			printk("USB power detected while recording: rebooting to charge-only mode\n");

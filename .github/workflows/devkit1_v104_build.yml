@@ -51,6 +51,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          include-hidden-files: true
           name: friend-devkit1-v1.0.4-usb-charge-${{ github.sha }}
           path: |
             build/zephyr/zephyr.uf2
