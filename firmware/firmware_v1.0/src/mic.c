@@ -17,6 +17,7 @@ static int16_t _buffer_0[MIC_BUFFER_SAMPLES];
 static int16_t _buffer_1[MIC_BUFFER_SAMPLES];
 static volatile uint8_t _next_buffer_index = 0;
 static volatile mix_handler _callback = NULL;
+static bool _pdm_started = false;
 
 static void pdm_irq_handler(nrfx_pdm_evt_t const *event)
 {
@@ -90,10 +91,24 @@ int mic_start()
         return -1;
     }
 
+    _pdm_started = true;
     printk("Microphone started\n");
     return 0;
 }
 
 void set_mic_callback(mix_handler callback) {
     _callback = callback;
+}
+
+// マイクを確実に止める（USB 給電を検知した時用）。コールバックを外して音声の流れを断ち、
+// PDM を止め、マイクの電源ピンを Low にする。mic_start() 前に呼んでも電源ピンは Low になる。
+void mic_power_off() {
+    _callback = NULL;
+    if (_pdm_started)
+    {
+        nrfx_pdm_stop();
+        _pdm_started = false;
+    }
+    nrfy_gpio_cfg_output(PDM_PWR_PIN);
+    nrfy_gpio_pin_clear(PDM_PWR_PIN);
 }
