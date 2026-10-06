@@ -41,6 +41,10 @@ jobs:
         run: |
           cd ncs
           source zephyr/zephyr-env.sh
+          ls -d /opt/toolchains/zephyr-sdk-* || true
+          export ZEPHYR_SDK_INSTALL_DIR="$(ls -d /opt/toolchains/zephyr-sdk-* | sort -V | tail -1)"
+          export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
+          echo "ZEPHYR_SDK_INSTALL_DIR=$ZEPHYR_SDK_INSTALL_DIR"
           west build -p always -b xiao_ble_sense "$GITHUB_WORKSPACE/app/firmware/firmware_v1.0" -d "$GITHUB_WORKSPACE/build"
           ls -l "$GITHUB_WORKSPACE/build/zephyr/zephyr.uf2"
           sha256sum "$GITHUB_WORKSPACE/build/zephyr/zephyr.uf2"
