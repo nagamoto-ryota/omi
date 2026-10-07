@@ -12,7 +12,7 @@
 
 // 起動のしかたで録音するかを決める（もみじ庵改修）。
 // - 電池で起動（スイッチ ON・USB なし）: 録音。あとから USB を挿しても録音を続けたまま充電する（勤務中）
-// - USB で起動（スイッチ OFF のまま USB を挿した）: 録音しない充電専用モード（マイク電源 Low・Bluetooth を起動しない・緑 LED）。
+// - USB で起動（スイッチ OFF のまま USB を挿した）: 録音しない充電専用モード（マイク電源 Low・Bluetooth を起動しない・赤 LED）。
 //   そのあとスイッチを ON にすると録音しないまま充電される（寝る前）
 // - 充電専用モードで USB が抜けたら再起動。電池がつながっていれば（スイッチ ON）録音で立ち上がる（朝）
 // スライドスイッチは電池を切るだけで USB 給電の経路は切れないため、スイッチ OFF でも USB を挿すと基板に電源が入る。
@@ -55,41 +55,19 @@ void bt_ctlr_assert_handle(char *name, int type)
 }
 
 bool is_connected = false;
-bool is_charging = false;
+static bool led_blink_phase = false;
 
+// 録音中の LED（もみじ庵改修）: 青=録音中 / 緑=録音しながら充電 / スマホ未接続ならその色で点滅。
+// 充電のみ（録音しない）の赤は charge_only_mode() で点ける。
 void set_led_state()
 {
-	// Recording and connected state - BLUE
-	if (is_connected)
-	{
-		set_led_red(false);
-		set_led_green(false);
-		set_led_blue(true);
-		return;
-	}
+	bool charging = usb_power_present();
+	bool lit = is_connected || led_blink_phase;
+	led_blink_phase = !led_blink_phase;
 
-	// Recording but lost connection - RED
-	if (!is_connected)
-	{
-		set_led_red(true);
-		set_led_green(false);
-		set_led_blue(false);
-		return;
-	}
-
-	// Not recording, but charging - WHITE
-	if (is_charging)
-	{
-		set_led_red(true);
-		set_led_green(true);
-		set_led_blue(true);
-		return;
-	}
-
-	// Not recording - OFF
 	set_led_red(false);
-	set_led_green(false);
-	set_led_blue(false);
+	set_led_green(charging && lit);
+	set_led_blue(!charging && lit);
 }
 
 static void charge_only_mode(void)
@@ -99,9 +77,10 @@ static void charge_only_mode(void)
 	// マイクは起動しないが、電源ピンを明示的に Low にしておく
 	mic_power_off();
 
-	set_led_red(false);
+	// 充電のみ（録音しない）= 赤
+	set_led_green(false);
 	set_led_blue(false);
-	set_led_green(true);
+	set_led_red(true);
 
 	// 充電電流の設定は通常モード（transport_start 内）と同じにそろえる
 	int battErr = 0;
