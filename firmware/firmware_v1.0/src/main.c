@@ -18,24 +18,22 @@
 // スライドスイッチは電池を切るだけで USB 給電の経路は切れないため、スイッチ OFF でも USB を挿すと基板に電源が入る。
 #define POWER_POLL_MS 100
 #define USB_REMOVED_DEBOUNCE_MS 500   // 抜けた判定は 500ms 以上連続で給電なし（挿し込み時のチャタリング対策）
-#define USB_PRESENT_CONFIRM_READS 3   // 挿した判定は 10ms 間隔で 3 回連続（接点のバタつきで再起動を繰り返さない）
-#define USB_PRESENT_CONFIRM_GAP_MS 10
+#define BOOT_USB_WATCH_MS 2000        // 起動直後この間に一度でも USB 給電を見たら録音しない（立ち上がりの遅い電源・接点のバタつき対策）
+#define BOOT_USB_WATCH_GAP_MS 10
 
-// 一瞬の VBUS のバタつきでは true にしない（最大約 20ms 待つ）
-static bool usb_power_stable_present(void)
+// 起動直後 BOOT_USB_WATCH_MS の間に一度でも USB 給電を見たら true（録音しない側に倒す）。
+// 誤って true になっても充電専用モードの「500ms 給電なし → 再起動」で録音に戻る。
+static bool usb_power_seen_at_boot(void)
 {
-	for (int i = 0; i < USB_PRESENT_CONFIRM_READS; i++)
+	for (int elapsed = 0; elapsed < BOOT_USB_WATCH_MS; elapsed += BOOT_USB_WATCH_GAP_MS)
 	{
-		if (i > 0)
+		if (usb_power_present())
 		{
-			k_msleep(USB_PRESENT_CONFIRM_GAP_MS);
+			return true;
 		}
-		if (!usb_power_present())
-		{
-			return false;
-		}
+		k_msleep(BOOT_USB_WATCH_GAP_MS);
 	}
-	return true;
+	return false;
 }
 
 static void codec_handler(uint8_t *data, size_t len)
@@ -141,7 +139,7 @@ int main(void)
 	ASSERT_OK(led_start());
 
 	// USB 給電中はマイクも Bluetooth も起動しない（戻らない）
-	if (usb_power_stable_present())
+	if (usb_power_seen_at_boot())
 	{
 		charge_only_mode();
 	}
