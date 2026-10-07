@@ -100,7 +100,7 @@ void set_mic_callback(mix_handler callback) {
     _callback = callback;
 }
 
-// マイクを確実に止める（USB 給電を検知した時用）。コールバックを外して音声の流れを断ち、
+// マイクを確実に止める（充電専用モードに入る時用）。コールバックを外して音声の流れを断ち、
 // PDM を止め、マイクの電源ピンを Low にする。mic_start() 前に呼んでも電源ピンは Low になる。
 void mic_power_off() {
     _callback = NULL;
