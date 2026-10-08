@@ -18,6 +18,7 @@ DEVICE_REVISION = 0xCE68  # 本家 readme の値（アプリだけの更新で�
 APPLICATION_VERSION = 0xFFFFFFFF  # genpkg の既定
 SOFTDEVICE_ANY = 0xFFFE  # genpkg の既定（どの SoftDevice でも可）
 MBR_END = 0x1000  # これより下は MBR（nrfutil の nRFHex.minaddr と同じ扱い）
+UICR_START = 0x10000000  # UICR の記録は送らない（nrfutil の nRFHex も読み込み時に捨てる）
 
 
 def read_hex(path):
@@ -50,6 +51,7 @@ def read_hex(path):
 
 
 def to_bin(data):
+    data = {a: b for a, b in data.items() if a < UICR_START}
     start = max(min(data), MBR_END)
     end = max(data)
     size = (end - start + 1 + 3) // 4 * 4  # 4 の倍数へ切り上げ（ブートローダが 4 の倍数しか受けない）
