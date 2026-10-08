@@ -41,7 +41,7 @@ XIAO の回路では USB の 5V（VBUS）がダイオード経由で直接 3.3V 
 GitHub Actions `.github/workflows/devkit1_v104_build.yml`（nRF Connect SDK v2.6.1・ボード `xiao_ble_sense`・コンテナ `ghcr.io/zephyrproject-rtos/ci:v0.26.13`）。
 Zephyr SDK はコンテナ内の最新版を選ぶ（2026-10-06 の実行では 0.16.8、ログに `ZEPHYR_SDK_INSTALL_DIR=` で出る）。
 実行結果の Artifacts に `zephyr.uf2`・`zephyr.hex`・`pendant-ota.zip`・`.config` が入る。
-`pendant-ota.zip` はもみじ録音からの無線更新用（`adafruit-nrfutil dfu genpkg --dev-type 0x0052` で作る旧式 Nordic DFU の zip）。
+`pendant-ota.zip` はもみじ録音からの無線更新用の旧式 Nordic DFU の zip。`tools/make_ota_zip.py` で作る（`adafruit-nrfutil dfu genpkg --dev-type 0x0052` と同じ中身になることを 2026-10-08 に確認。nrfutil はビルド用コンテナに入らなかった）。
 
 ## 書き込み手順
 

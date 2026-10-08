@@ -50,14 +50,12 @@ jobs:
           sha256sum "$GITHUB_WORKSPACE/build/zephyr/zephyr.uf2"
 
       # 無線更新（旧式 Nordic DFU）用の zip。ブートローダ（Adafruit 0.6.1）は dev-type 0x0052 だけを見る。
-      # adafruit-nrfutil は新しい setuptools と相性が悪いことがあるので venv に入れる。
-      - name: Package OTA zip (adafruit-nrfutil)
+      # 中身は adafruit-nrfutil dfu genpkg と同じ（標準ライブラリだけの自作スクリプト。nrfutil はこのコンテナに入らない）。
+      - name: Package OTA zip
         shell: bash
         run: |
-          python3 -m venv /tmp/nrfutil
-          /tmp/nrfutil/bin/pip install -q adafruit-nrfutil==0.5.3.post16
-          /tmp/nrfutil/bin/adafruit-nrfutil dfu genpkg --dev-type 0x0052 --dev-revision 0xCE68 \
-            --application "$GITHUB_WORKSPACE/build/zephyr/zephyr.hex" "$GITHUB_WORKSPACE/build/zephyr/pendant-ota.zip"
+          python3 "$GITHUB_WORKSPACE/app/firmware/firmware_v1.0/tools/make_ota_zip.py" \
+            "$GITHUB_WORKSPACE/build/zephyr/zephyr.hex" "$GITHUB_WORKSPACE/build/zephyr/pendant-ota.zip"
           python3 -m zipfile -l "$GITHUB_WORKSPACE/build/zephyr/pendant-ota.zip"
           sha256sum "$GITHUB_WORKSPACE/build/zephyr/pendant-ota.zip"
 
