@@ -1,7 +1,7 @@
 name: DevKit1 v1.0.4 firmware build (momijian)
 
 # 自作ペンダント（Seeed XIAO nRF52840 Sense）用 DevKit1 ファーム v1.0.4 系のビルド。
-# 書き込み用の zephyr.uf2 を成果物（artifact）として残す。リリースは作らない。
+# 書き込み用の zephyr.uf2（USB 用）と pendant-ota.zip（もみじ録音からの無線更新用）を成果物（artifact）として残す。リリースは作らない。
 # SDK は v1.0.4 当時の nRF Connect SDK に合わせる（ボード名 xiao_ble_sense が使える v2.6 系）。
 
 on:
@@ -49,6 +49,16 @@ jobs:
           ls -l "$GITHUB_WORKSPACE/build/zephyr/zephyr.uf2"
           sha256sum "$GITHUB_WORKSPACE/build/zephyr/zephyr.uf2"
 
+      # 無線更新（旧式 Nordic DFU）用の zip。ブートローダ（Adafruit 0.6.1）は dev-type 0x0052 だけを見る。
+      # 中身は adafruit-nrfutil dfu genpkg と同じ（標準ライブラリだけの自作スクリプト。nrfutil はこのコンテナに入らない）。
+      - name: Package OTA zip
+        shell: bash
+        run: |
+          python3 "$GITHUB_WORKSPACE/app/firmware/firmware_v1.0/tools/make_ota_zip.py" \
+            "$GITHUB_WORKSPACE/build/zephyr/zephyr.hex" "$GITHUB_WORKSPACE/build/zephyr/pendant-ota.zip"
+          python3 -m zipfile -l "$GITHUB_WORKSPACE/build/zephyr/pendant-ota.zip"
+          sha256sum "$GITHUB_WORKSPACE/build/zephyr/pendant-ota.zip"
+
       - uses: actions/upload-artifact@v4
         with:
           include-hidden-files: true
@@ -56,4 +66,5 @@ jobs:
           path: |
             build/zephyr/zephyr.uf2
             build/zephyr/zephyr.hex
+            build/zephyr/pendant-ota.zip
             build/zephyr/.config

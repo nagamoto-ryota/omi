@@ -25,7 +25,7 @@
 - 充電電流などの電池設定は従来と同じ（100mA・XIAO の RGB とは別の小さな充電表示 LED（USB 差込口の横）は従来どおり点きっぱなし。RGB の色と見間違えないこと）。
 - 起動途中でマイク等の初期化に失敗しても main を抜けない。
 - 充電専用モードでは BLE を起動しないので、ファームの無線更新（OTA）はできない。書き換えは下の UF2 手順で行う。
-- `CONFIG_BT_DIS_FW_REV_STR` は `1.0.4` のまま（アプリ側の互換を崩さないため）。
+- `CONFIG_BT_DIS_FW_REV_STR` は 2026-10-08 から `1.0.4-mj1`（もみじ録音が今入っている版を見分けるため。それより前に書いた改修版は `1.0.4` のまま）。改修を変えるたびに末尾の数字を上げる。
 - 公式 Omi アプリの「ファーム更新」を押すと本家ファームに置き換わり、この改修が消える。押さない。
 - スマホのアプリ（もみじ録音・Omi）は入れ直し不要。
 
@@ -40,7 +40,8 @@ XIAO の回路では USB の 5V（VBUS）がダイオード経由で直接 3.3V 
 
 GitHub Actions `.github/workflows/devkit1_v104_build.yml`（nRF Connect SDK v2.6.1・ボード `xiao_ble_sense`・コンテナ `ghcr.io/zephyrproject-rtos/ci:v0.26.13`）。
 Zephyr SDK はコンテナ内の最新版を選ぶ（2026-10-06 の実行では 0.16.8、ログに `ZEPHYR_SDK_INSTALL_DIR=` で出る）。
-実行結果の Artifacts に `zephyr.uf2`・`zephyr.hex`・`.config` が入る。
+実行結果の Artifacts に `zephyr.uf2`・`zephyr.hex`・`pendant-ota.zip`・`.config` が入る。
+`pendant-ota.zip` はもみじ録音からの無線更新用の旧式 Nordic DFU の zip。`tools/make_ota_zip.py` で作る（`adafruit-nrfutil dfu genpkg --dev-type 0x0052` と同じ中身になることを 2026-10-08 に確認。nrfutil はビルド用コンテナに入らなかった）。
 
 ## 書き込み手順
 
